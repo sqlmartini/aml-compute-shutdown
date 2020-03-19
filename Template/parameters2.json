@@ -1,0 +1,24 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "functionAppName": {
+            "value": "sqlmartini"
+        },
+        "keyVaultName": {
+            "value": "sqlmartiniKV"
+          },
+        "clientID_secretName": {
+            "value": "SP-clientID"
+        },
+        "clientID_secretValue": {
+            "value": "a421c122-f44c-4595-b511-b6c35d217716"
+        },
+        "secret_secretName": {
+            "value": "SP-secret"
+        },
+        "secret_secretValue": {
+            "value": "DX]LLDtD1lGyYzG[/8YtDJx]RbbjdV34"
+        }
+    }
+}
