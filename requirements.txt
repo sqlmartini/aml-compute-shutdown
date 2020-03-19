@@ -1,0 +1,4 @@
+azure-functions
+azureml-sdk
+azure.identity
+msrestazure
