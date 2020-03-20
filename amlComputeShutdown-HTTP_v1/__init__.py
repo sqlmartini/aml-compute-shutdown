@@ -1,5 +1,4 @@
 import os
-import datetime
 import logging
 import azure.functions as func
 
@@ -10,11 +9,12 @@ from azureml.core.compute import ComputeTarget
 from azureml.core.authentication import ServicePrincipalAuthentication
 
 def shutdownComputeInstances():
+
     #Get service principal details from app settings
     subscriptionID = os.environ["subscriptionID"]
     tenantID = os.environ["tenantID"]
     clientID = os.environ["clientID"]
-    spSecret = os.environ["spSecret"]
+    spSecret = os.environ["secret"]
 
     #Authenticate to AML workspace with service principal
     auth = ServicePrincipalAuthentication(
@@ -30,19 +30,13 @@ def shutdownComputeInstances():
     #Loop through workspace compute, stop all compute instances
     computeList = ComputeTarget.list(ws)
     for compute in computeList:
-        #Filter compute to only compute instances
         if compute.type == 'ComputeInstance':
             logging.info("stop compute instance")
             compute.stop()
 
 
-def main(mytimer: func.TimerRequest) -> None:
-    utc_timestamp = datetime.datetime.utcnow().replace(
-        tzinfo=datetime.timezone.utc).isoformat()
+def main(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('Python HTTP trigger function processed a request.')
+    shutdownComputeInstances()
 
-    if mytimer.past_due:
-        logging.info('The timer is past due!')
-        shutdownComputeInstances()
-
-    logging.info('Python timer trigger function ran at %s', utc_timestamp)
-
+    return func.HttpResponse(status_code=200)
