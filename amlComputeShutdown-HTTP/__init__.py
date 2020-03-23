@@ -9,12 +9,14 @@ from azureml.core.compute import ComputeTarget
 from azureml.core.authentication import ServicePrincipalAuthentication
 
 def shutdownComputeInstances():
-
+    
     #Get service principal details from app settings
     subscriptionID = os.environ["subscriptionID"]
     tenantID = os.environ["tenantID"]
     clientID = os.environ["clientID"]
     spSecret = os.environ["secret"]
+
+    #logging.info(subscriptionID, tenantID, clientID, spSecret)
 
     #Authenticate to AML workspace with service principal
     auth = ServicePrincipalAuthentication(
@@ -23,8 +25,8 @@ def shutdownComputeInstances():
         service_principal_password = spSecret)
 
     ws = Workspace(subscription_id = subscriptionID,
-                resource_group = "azureml",
-                workspace_name = "azureml",
+                resource_group = "sqlmartini",
+                workspace_name = "sqlmartini-aml",
                 auth = auth)
 
     #Loop through workspace compute, stop all compute instances
@@ -33,7 +35,6 @@ def shutdownComputeInstances():
         if compute.type == 'ComputeInstance':
             logging.info("stop compute instance")
             compute.stop()
-
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request.')

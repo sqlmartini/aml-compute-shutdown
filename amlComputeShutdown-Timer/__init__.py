@@ -23,8 +23,8 @@ def shutdownComputeInstances():
         service_principal_password = spSecret)
 
     ws = Workspace(subscription_id = subscriptionID,
-                resource_group = "azureml",
-                workspace_name = "azureml",
+                resource_group = "sqlmartini",
+                workspace_name = "sqlmartini-aml",
                 auth = auth)
 
     #Loop through workspace compute, stop all compute instances
