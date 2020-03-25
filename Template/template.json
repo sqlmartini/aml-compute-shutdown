@@ -1,180 +1,258 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "functionApp_name": {
-            "defaultValue": "anthmaFunctions",
-            "type": "String"
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "The location which resources will be deployed to"
+            }
+        },        
+        "resourceNamePrefix": {
+            "type": "String",
+            "metadata": {
+                "description": "Prefix to be used in naming resources"
+             }
+        },               
+        "SP-clientID": {
+            "type": "String",
+            "metadata": {
+                "description": "Client ID of service principal that has access to AML workspace"
+             }            
         },
-        "serverfarms_ASP_Demo_9eea_externalid": {
-            "defaultValue": "/subscriptions/4b395f5d-d1ab-4bae-808d-a4398c9c61c5/resourceGroups/Demo/providers/Microsoft.Web/serverfarms/ASP-Demo-9eea",
-            "type": "String"
-        }
+        "SP-secret": {
+            "type": "securestring",
+            "metadata": {
+                "description": "Secret of service principal that has acccess to AML workspace"
+             }            
+        }                
     },
-    "variables": {},
+    "variables": {
+        "storageAccountName": "[concat(parameters('resourceNamePrefix'), 'storage')]",
+        "keyVaultName": "[concat(parameters('resourceNamePrefix'), '-kvault')]",
+        "applicationInsightsName": "[concat(parameters('resourceNamePrefix'), '-ai')]",        
+        "functionAppName": "[concat(parameters('resourceNamePrefix'), '-functions')]",
+        "amlWorkspaceName": "[concat(parameters('resourceNamePrefix'), '-aml')]",
+        "amlComputeInstanceName": "[parameters('resourceNamePrefix')]"
+    },
     "resources": [
         {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('storageAccountName')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "Standard_LRS"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "enabled": true
+                        },
+                        "blob": {
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },        
+        {
+            "type": "microsoft.insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[variables('applicationInsightsName')]",
+            "location": "[parameters('location')]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web"
+            }
+        },      
+        {
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2018-02-01",
+            "name": "[variables('functionAppName')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "Y1",
+                "tier": "Dynamic"
+            },
+            "kind": "functionapp",
+            "properties": {
+                "maximumElasticWorkerCount": 1,
+                "targetWorkerCount": 0,
+                "targetWorkerSizeId": 0
+            }
+        },
+        {
             "type": "Microsoft.Web/sites",
-            "apiVersion": "2018-11-01",
-            "name": "[parameters('functionApp_name')]",
-            "location": "East US 2",
+            "apiVersion": "2019-08-01",
+            "name": "[variables('functionAppName')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', variables('functionAppName'))]"
+            ],
             "kind": "functionapp,linux",
             "identity": {
                 "type": "SystemAssigned"
             },
             "properties": {
-                "enabled": true,
-                "hostNameSslStates": [
-                    {
-                        "name": "anthmafunctions.azurewebsites.net",
-                        "sslState": "Disabled",
-                        "hostType": "Standard"
-                    },
-                    {
-                        "name": "anthmafunctions.scm.azurewebsites.net",
-                        "sslState": "Disabled",
-                        "hostType": "Repository"
-                    }
-                ],
-                "serverFarmId": "[parameters('serverfarms_ASP_Demo_9eea_externalid')]",
-                "reserved": true,
-                "isXenon": false,
-                "hyperV": false,
-                "scmSiteAlsoStopped": false,
-                "clientAffinityEnabled": false,
-                "clientCertEnabled": false,
-                "hostNamesDisabled": false,
-                "containerSize": 1536,
-                "dailyMemoryTimeQuota": 0,
-                "httpsOnly": false,
-                "redundancyMode": "None"
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('functionAppName'))]",
+                "linuxFxVersion": "Python|3.7",
+                "siteConfig": {
+                    "appSettings": [
+                        {
+                            "name": "FUNCTIONS_EXTENSION_VERSION",
+                            "value": "~3"
+                        },
+                        {
+                            "name": "FUNCTIONS_WORKER_RUNTIME",
+                            "value": "python"
+                        },
+                        {
+                            "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                            "value": "[reference(concat('microsoft.insights/components/', variables('applicationInsightsName')), '2015-05-01').InstrumentationKey]"
+                        },
+                        {
+                            "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                            "value": "[reference(concat('microsoft.insights/components/', variables('applicationInsightsName')), '2015-05-01').ConnectionString]"
+                        },
+                        {
+                            "name": "AzureWebJobsStorage",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2019-06-01').keys[0].value,';EndpointSuffix=','core.windows.net')]"
+                        }
+                    ]                
+                }
             }
-        },
+        },   
         {
-            "type": "Microsoft.Web/sites/config",
-            "apiVersion": "2018-11-01",
-            "name": "[concat(parameters('functionApp_name'), '/web')]",
-            "location": "East US 2",
-            "dependsOn": [
-                "[resourceId('Microsoft.Web/sites', parameters('functionApp_name'))]"
-            ],
+            "type": "Microsoft.KeyVault/vaults",
+            "apiVersion": "2018-02-14",
+            "name": "[variables('keyVaultName')]",
+            "location": "[parameters('location')]",      
             "properties": {
-                "numberOfWorkers": 1,
-                "defaultDocuments": [
-                    "Default.htm",
-                    "Default.html",
-                    "Default.asp",
-                    "index.htm",
-                    "index.html",
-                    "iisstart.htm",
-                    "default.aspx",
-                    "index.php"
-                ],
-                "netFrameworkVersion": "v4.0",
-                "linuxFxVersion": "PYTHON|3.7",
-                "requestTracingEnabled": false,
-                "remoteDebuggingEnabled": false,
-                "remoteDebuggingVersion": "VS2019",
-                "httpLoggingEnabled": false,
-                "logsDirectorySizeLimit": 35,
-                "detailedErrorLoggingEnabled": false,
-                "publishingUsername": "$anthmaFunctions",
-                "scmType": "None",
-                "use32BitWorkerProcess": true,
-                "webSocketsEnabled": false,
-                "alwaysOn": false,
-                "managedPipelineMode": "Integrated",
-                "virtualApplications": [
-                    {
-                        "virtualPath": "/",
-                        "physicalPath": "site\\wwwroot",
-                        "preloadEnabled": false
-                    }
-                ],
-                "loadBalancing": "LeastRequests",
-                "experiments": {
-                    "rampUpRules": []
+                "sku": {
+                    "family": "A",
+                    "name": "Standard"
                 },
-                "autoHealEnabled": false,
-                "cors": {
-                    "allowedOrigins": [
-                        "https://functions.azure.com",
-                        "https://functions-staging.azure.com",
-                        "https://functions-next.azure.com"
-                    ],
-                    "supportCredentials": false
-                },
-                "localMySqlEnabled": false,
-                "managedServiceIdentityId": 1544,
-                "ipSecurityRestrictions": [
+                "tenantId": "[subscription().tenantID]",
+                "accessPolicies": [
                     {
-                        "ipAddress": "Any",
-                        "action": "Allow",
-                        "priority": 1,
-                        "name": "Allow all",
-                        "description": "Allow all access"
+                        "tenantId": "[subscription().tenantID]",
+                        "objectId": "[reference(concat('Microsoft.Web/sites/', variables('functionAppName')), '2019-08-01', 'Full').identity.principalId]",
+                        "permissions": {
+                            "keys": [],
+                            "secrets": [
+                                "Get",
+                                "List"
+                            ],
+                            "certificates": []
+                        }
                     }
                 ],
-                "scmIpSecurityRestrictions": [
-                    {
-                        "ipAddress": "Any",
-                        "action": "Allow",
-                        "priority": 1,
-                        "name": "Allow all",
-                        "description": "Allow all access"
-                    }
-                ],
-                "scmIpSecurityRestrictionsUseMain": false,
-                "http20Enabled": false,
-                "minTlsVersion": "1.2",
-                "ftpsState": "AllAllowed",
-                "reservedInstanceCount": 0
+                "enabledForDeployment": true,
+                "enabledForDiskEncryption": false,
+                "enabledForTemplateDeployment": true
+            }
+        },               
+        {
+            "type": "Microsoft.KeyVault/vaults/secrets",
+            "apiVersion": "2018-02-14",
+            "name": "[concat(variables('keyVaultName'), '/SP-clientID')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+            ],
+            "properties": {
+                "value": "[parameters('SP-clientID')]",
+                "attributes": {
+                    "enabled": true
+                }
             }
         },
         {
-            "type": "Microsoft.Web/sites/functions",
-            "apiVersion": "2018-11-01",
-            "name": "[concat(parameters('functionApp_name'), '/amlComputeInstanceShutdown')]",
-            "location": "East US 2",
+            "type": "Microsoft.KeyVault/vaults/secrets",
+            "apiVersion": "2018-02-14",
+            "name": "[concat(variables('keyVaultName'), '/SP-secret')]",
+            "location": "[parameters('location')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Web/sites', parameters('functionApp_name'))]"
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
             ],
             "properties": {
-                "script_root_path_href": "https://anthmafunctions.azurewebsites.net/admin/vfs/home/site/wwwroot/amlComputeInstanceShutdown/",
-                "script_href": "https://anthmafunctions.azurewebsites.net/admin/vfs/home/site/wwwroot/amlComputeInstanceShutdown/__init__.py",
-                "config_href": "https://anthmafunctions.azurewebsites.net/admin/vfs/home/site/wwwroot/amlComputeInstanceShutdown/function.json",
-                "href": "https://anthmafunctions.azurewebsites.net/admin/functions/amlComputeInstanceShutdown",
-                "config": {}
+                "value": "[parameters('SP-secret')]",
+                "attributes": {
+                    "enabled": true
+                }
             }
         },
         {
-            "type": "Microsoft.Web/sites/functions",
-            "apiVersion": "2018-11-01",
-            "name": "[concat(parameters('functionApp_name'), '/amlComputeShutdown')]",
-            "location": "East US 2",
+            "type": "Microsoft.KeyVault/vaults/secrets",
+            "apiVersion": "2018-02-14",
+            "name": "[concat(variables('keyVaultName'), '/SP-subscriptionID')]",
+            "location": "[parameters('location')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Web/sites', parameters('functionApp_name'))]"
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
             ],
             "properties": {
-                "script_root_path_href": "https://anthmafunctions.azurewebsites.net/admin/vfs/home/site/wwwroot/amlComputeShutdown/",
-                "script_href": "https://anthmafunctions.azurewebsites.net/admin/vfs/home/site/wwwroot/amlComputeShutdown/__init__.py",
-                "config_href": "https://anthmafunctions.azurewebsites.net/admin/vfs/home/site/wwwroot/amlComputeShutdown/function.json",
-                "href": "https://anthmafunctions.azurewebsites.net/admin/functions/amlComputeShutdown",
-                "config": {}
+                "value": "[subscription().subscriptionID]",
+                "attributes": {
+                    "enabled": true
+                }
             }
         },
         {
-            "type": "Microsoft.Web/sites/hostNameBindings",
-            "apiVersion": "2018-11-01",
-            "name": "[concat(parameters('functionApp_name'), '/', parameters('functionApp_name'), '.azurewebsites.net')]",
-            "location": "East US 2",
+            "type": "Microsoft.KeyVault/vaults/secrets",
+            "apiVersion": "2018-02-14",
+            "name": "[concat(variables('keyVaultName'), '/SP-tenantID')]",
+            "location": "[parameters('location')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Web/sites', parameters('functionApp_name'))]"
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
             ],
             "properties": {
-                "siteName": "anthmaFunctions",
-                "hostNameType": "Verified"
+                "value": "[subscription().tenantID]",
+                "attributes": {
+                    "enabled": true
+                }
             }
-        }
+        },
+        {
+            "type": "Microsoft.MachineLearningServices/workspaces",
+            "apiVersion": "2019-11-01",
+            "name": "[variables('amlWorkspaceName')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+                "[resourceId('microsoft.insights/components', variables('applicationInsightsName'))]"
+            ],
+            "sku": {
+                "name": "Enterprise",
+                "tier": "Enterprise"
+            },
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "storageAccount": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+                "keyVault": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+                "applicationInsights": "[resourceId('microsoft.insights/components', variables('applicationInsightsName'))]"
+            }
+        },
+        {
+            "type": "Microsoft.MachineLearningServices/workspaces/computes",
+            "apiVersion": "2019-11-01",
+            "name": "[concat(variables('amlWorkspaceName'), '/', parameters('resourceNamePrefix'))]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('amlWorkspaceName'))]"
+            ],
+            "properties": {
+                "computeType": "ComputeInstance",
+                "computeLocation": "[variables('amlComputeInstanceName')]"
+            }
+        }        
     ]
 }
