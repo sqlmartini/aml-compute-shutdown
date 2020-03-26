@@ -12,7 +12,7 @@
             "value": "DX]LLDtD1lGyYzG[/8YtDJx]RbbjdV34"
         },
         "computeInstanceSize": {
-            "value": ""
+            "value": "Standard_D3_v2"
         }                        
     }
 }

@@ -264,7 +264,11 @@
             "computeType": "computeinstance",
             "computeLocation" : "[parameters('location')]",
             "properties": {
-                "vmSize" : "[parameters('computeInstanceSize')]"
+                "vmSize" : "[parameters('computeInstanceSize')]",
+                "applicationSharingPolicy": "Personal",
+                "sshSettings": {
+                    "sshPublicAccess": "Disabled"
+                }
             }
         }
       }
