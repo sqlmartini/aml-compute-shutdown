@@ -131,7 +131,23 @@
                         {
                             "name": "AzureWebJobsStorage",
                             "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2019-06-01').keys[0].value,';EndpointSuffix=','core.windows.net')]"
-                        }
+                        },
+                        {
+                            "name": "clientID",
+                            "value": "[concat('@Microsoft.KeyVault(SecretUri=https://', variables('keyVaultName'), '.vault.azure.net/secrets/SP-clientID/)')]"
+                        },
+                        {
+                            "name": "secret",
+                            "value": "[concat('@Microsoft.KeyVault(SecretUri=https://', variables('keyVaultName'), '.vault.azure.net/secrets/SP-secret/)')]"
+                        },
+                        {
+                            "name": "tenantID",
+                            "value": "[concat('@Microsoft.KeyVault(SecretUri=https://', variables('keyVaultName'), '.vault.azure.net/secrets/SP-tenantID/)')]"
+                        },
+                        {
+                            "name": "subscriptionID",
+                            "value": "[concat('@Microsoft.KeyVault(SecretUri=https://', variables('keyVaultName'), '.vault.azure.net/secrets/SP-subscriptionID/)')]"
+                        }                                                                                  
                     ]                
                 }
             }
