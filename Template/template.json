@@ -10,13 +10,13 @@
             }
         },        
         "resourceNamePrefix": {
-            "type": "String",
+            "type": "string",
             "metadata": {
                 "description": "Prefix to be used in naming resources"
              }
         },               
         "SP-clientID": {
-            "type": "String",
+            "type": "string",
             "metadata": {
                 "description": "Client ID of service principal that has access to AML workspace"
              }            
@@ -26,14 +26,22 @@
             "metadata": {
                 "description": "Secret of service principal that has acccess to AML workspace"
              }            
-        }                
+        },
+        "computeInstanceSize": {
+            "type": "string",
+            "defaultValue": "Standard_D3_v2",            
+            "metadata": {
+                "description": "VM size of the AML Compute Instance"
+             }            
+        }                        
     },
     "variables": {
         "storageAccountName": "[concat(parameters('resourceNamePrefix'), 'storage')]",
         "keyVaultName": "[concat(parameters('resourceNamePrefix'), '-kvault')]",
         "applicationInsightsName": "[concat(parameters('resourceNamePrefix'), '-ai')]",        
         "functionAppName": "[concat(parameters('resourceNamePrefix'), '-functions')]",
-        "amlWorkspaceName": "[concat(parameters('resourceNamePrefix'), '-aml')]"
+        "amlWorkspaceName": "[concat(parameters('resourceNamePrefix'), '-aml')]",
+        "amlComputeInstanceName": "[parameters('resourceNamePrefix')]"        
     },
     "resources": [
         {
@@ -240,6 +248,25 @@
                 "keyVault": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
                 "applicationInsights": "[resourceId('microsoft.insights/components', variables('applicationInsightsName'))]"
             }
+        },
+      {
+        "type": "Microsoft.MachineLearningServices/workspaces/computes",
+        "apiVersion": "2020-01-01",
+        "name": "[concat(variables('amlWorkspaceName'), '/', variables('amlComputeInstanceName'))]",
+        "location": "[parameters('location')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('amlWorkspaceName'))]"
+        ],
+        "identity": {
+          "type": "systemAssigned"
+        },
+        "properties": {
+            "computeType": "computeinstance",
+            "computeLocation" : "[parameters('location')]",
+            "properties": {
+                "vmSize" : "[parameters('computeInstanceSize')]"
+            }
         }
+      }
     ]
 }

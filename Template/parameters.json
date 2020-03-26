@@ -10,6 +10,9 @@
         },
         "SP-secret": {
             "value": "DX]LLDtD1lGyYzG[/8YtDJx]RbbjdV34"
-        }                
+        },
+        "computeInstanceSize": {
+            "value": ""
+        }                        
     }
 }
