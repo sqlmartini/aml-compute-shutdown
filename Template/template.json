@@ -33,8 +33,7 @@
         "keyVaultName": "[concat(parameters('resourceNamePrefix'), '-kvault')]",
         "applicationInsightsName": "[concat(parameters('resourceNamePrefix'), '-ai')]",        
         "functionAppName": "[concat(parameters('resourceNamePrefix'), '-functions')]",
-        "amlWorkspaceName": "[concat(parameters('resourceNamePrefix'), '-aml')]",
-        "amlComputeInstanceName": "[parameters('resourceNamePrefix')]"
+        "amlWorkspaceName": "[concat(parameters('resourceNamePrefix'), '-aml')]"
     },
     "resources": [
         {
@@ -84,7 +83,8 @@
             "properties": {
                 "maximumElasticWorkerCount": 1,
                 "targetWorkerCount": 0,
-                "targetWorkerSizeId": 0
+                "targetWorkerSizeId": 0,
+                "reserved": "true"
             }
         },
         {
@@ -240,19 +240,6 @@
                 "keyVault": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
                 "applicationInsights": "[resourceId('microsoft.insights/components', variables('applicationInsightsName'))]"
             }
-        },
-        {
-            "type": "Microsoft.MachineLearningServices/workspaces/computes",
-            "apiVersion": "2019-11-01",
-            "name": "[concat(variables('amlWorkspaceName'), '/', parameters('resourceNamePrefix'))]",
-            "location": "[parameters('location')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('amlWorkspaceName'))]"
-            ],
-            "properties": {
-                "computeType": "ComputeInstance",
-                "computeLocation": "[variables('amlComputeInstanceName')]"
-            }
-        }        
+        }
     ]
 }
