@@ -1,6 +1,8 @@
 # **Intro**
 
-This is an example project to automate the shutting down of Azure ML Compute Instances using Azure Functions.  This is useful from a cost savings perspective to ensure that compute is shut down outside of normal working hours.  As of 3/27/2020 the AML Python SDK is the only way to manage Compute Instances and AML CLI is not supported.
+This is an example project to automate the shutting down of Azure ML Compute Instances using Azure Functions.  This is useful from a cost savings perspective to ensure that compute is shut down outside of normal working hours.  
+
+As of 3/27/2020 the AML Python SDK is the only way to manage Compute Instances as the AML CLI is not currently supported.
 
 Services Used:
 - **Azure Machine Learning**:  workspace that contains the Compute Instance used for ML development and model training
@@ -18,7 +20,7 @@ Services Used:
 
 ## 1.  Create AAD Service Principal
 
-The Azure functions will authenticate to the AML workspace using an AAD service principal.  The powershell commands will create a new service principal and print out the object ID, client ID, and secret.  Store these values as they will be needed in later steps.  Be sure to replace "ServicePrinicpalNameHere" with the name you want to use.  
+The Azure functions will authenticate to the AML workspace using an AAD service principal.  The powershell commands below will create a new service principal and print out the object ID, client ID, and secret.  Store these values as they will be needed in later steps.  Be sure to replace "ServicePrinicpalNameHere" with the name you want to use.  
 
 ```powershell
 $sp = New-AzADServicePrincipal -DisplayName ServicePrincipalNameHere
@@ -87,4 +89,8 @@ The functions use the AML Python SDK to authenticate to the AML workspace using 
 
 ## 5.  Test amlComputeShutdown-HTTP Function using Postman
 
-From VS Code in the Azure: Functions area in the side bar, expand the new function app under your subscription. Expand Functions, right-click (Windows) or Ctrl + click (MacOS) on amlComputeShutdown-Timer, and then choose Copy function URL.  Paste this URL into a new Postman GET request and hit send.  Navigate to https://azureml.com and verify that the Compute Instance created in the ARM template is in a "Stopping" or "Stopped" state. 
+From VS Code in the Azure: Functions area in the side bar, expand the new function app under your subscription. Expand Functions, right-click (Windows) or Ctrl + click (MacOS) on amlComputeShutdown-Timer, and then choose Copy function URL.  
+
+Paste this URL into a new Postman GET request and hit send.  
+
+Navigate to https://azureml.com and verify that the Compute Instance created in the ARM template is in a "Stopping" or "Stopped" state. Voila!
