@@ -1,17 +1,15 @@
 # aml-compute-shutdown
 
 This is an example project to automate the shutting down of Azure ML Compute Instances using Azure Functions.  There are two Azure functions in the solution that execute the same code, but use different triggers.
-- amlComputeShutdown-Timer:  is triggered by a timer.
+- amlComputeShutdown-Timer:  is triggered by a timer.  Configured for 10pm UTC.
 - amlComputeShutdown-HTTP:  is triggered by an HTTP request.
 
 Services Used:
-- Azure DevOps
-- Azure Databricks
-- Azure Data Lake Gen2 (referred to as ADLS Gen2)
-- Azure Data Factory (referred to as ADF)
-- Azure Container Registry (referred to as ACR)
-- Azure Kubernetes Service (referred to as AKS)
+- Azure Machine Learning
+- Azure Function App
 - Azure Key Vault
+- Azure Blob Storage
+- Azure App Insights
 
 For a more detailed walkthrough, please see the associated blog post on my website at [https://www.kcmunnings.com/azure-rmodel-devops-1/](https://www.kcmunnings.com/azure-rmodel-devops-1/).  The goal of this repo is to demonstrate some capabilities for operationalizing a R model on Azure (Source Control + Testing + CI + CD).
 

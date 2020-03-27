@@ -27,13 +27,19 @@
                 "description": "Secret of service principal that has acccess to AML workspace"
              }            
         },
+        "SP-objectID": {
+            "type": "string",
+            "metadata": {
+                "description": "Object ID of the service principal to be given contributor access to the resource group"
+             }            
+        },        
         "computeInstanceSize": {
             "type": "string",
             "defaultValue": "Standard_D3_v2",            
             "metadata": {
                 "description": "VM size of the AML Compute Instance"
              }            
-        }                        
+        }              
     },
     "variables": {
         "storageAccountName": "[concat(parameters('resourceNamePrefix'), 'storage')]",
@@ -41,7 +47,9 @@
         "applicationInsightsName": "[concat(parameters('resourceNamePrefix'), '-ai')]",        
         "functionAppName": "[concat(parameters('resourceNamePrefix'), '-functions')]",
         "amlWorkspaceName": "[concat(parameters('resourceNamePrefix'), '-aml')]",
-        "amlComputeInstanceName": "[parameters('resourceNamePrefix')]"        
+        "amlComputeInstanceName": "[parameters('resourceNamePrefix')]",
+        "contributorRoleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+        "roleAssignmentId": "[guid(concat(resourceGroup().id, 'contributor'))]"           
     },
     "resources": [
         {
@@ -273,28 +281,39 @@
                 "applicationInsights": "[resourceId('microsoft.insights/components', variables('applicationInsightsName'))]"
             }
         },
-      {
-        "type": "Microsoft.MachineLearningServices/workspaces/computes",
-        "apiVersion": "2020-01-01",
-        "name": "[concat(variables('amlWorkspaceName'), '/', variables('amlComputeInstanceName'))]",
-        "location": "[parameters('location')]",
-        "dependsOn": [
-          "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('amlWorkspaceName'))]"
-        ],
-        "identity": {
-          "type": "systemAssigned"
-        },
-        "properties": {
-            "computeType": "computeinstance",
-            "computeLocation" : "[parameters('location')]",
+        {
+            "type": "Microsoft.MachineLearningServices/workspaces/computes",
+            "apiVersion": "2020-01-01",
+            "name": "[concat(variables('amlWorkspaceName'), '/', variables('amlComputeInstanceName'))]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+            "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('amlWorkspaceName'))]"
+            ],
+            "identity": {
+            "type": "systemAssigned"
+            },
             "properties": {
-                "vmSize" : "[parameters('computeInstanceSize')]",
-                "applicationSharingPolicy": "Personal",
-                "sshSettings": {
-                    "sshPublicAccess": "Disabled"
+                "computeType": "computeinstance",
+                "computeLocation" : "[parameters('location')]",
+                "properties": {
+                    "vmSize" : "[parameters('computeInstanceSize')]",
+                    "applicationSharingPolicy": "Personal",
+                    "sshSettings": {
+                        "sshPublicAccess": "Disabled"
+                    }
                 }
             }
-        }
-      }
+        },
+        {
+            "type": "Microsoft.Authorization/roleAssignments",
+            "apiVersion": "2018-09-01-preview",
+            "name": "[variables('roleAssignmentId')]",
+            "properties": {
+                "roleDefinitionId": "[variables('contributorRoleDefinitionId')]",
+                "principalId": "[parameters('SP-objectID')]",
+                "scope": "[resourceGroup().id]",
+                "principalType": "ServicePrincipal"
+            }
+        }  
     ]
 }
