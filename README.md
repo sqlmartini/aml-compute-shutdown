@@ -1,95 +1,90 @@
-# aml-compute-shutdown
+# **Intro**
 
-This is an example project to automate the shutting down of Azure ML Compute Instances using Azure Functions.  There are two Azure functions in the solution that execute the same code, but use different triggers.
-- amlComputeShutdown-Timer:  is triggered by a timer.  Configured for 10pm UTC.
-- amlComputeShutdown-HTTP:  is triggered by an HTTP request.
+This is an example project to automate the shutting down of Azure ML Compute Instances using Azure Functions.  This is useful from a cost savings perspective to ensure that compute is shut down outside of normal working hours.  As of 3/27/2020 the AML Python SDK is the only way to manage Compute Instances and AML CLI is not supported.
 
 Services Used:
-- Azure Machine Learning
-- Azure Function App
-- Azure Key Vault
-- Azure Blob Storage
-- Azure App Insights
+- **Azure Machine Learning**:  workspace that contains the Compute Instance used for ML development and model training
+- **Azure Function App**:  contains serverless functions for shutting down AML Compute Instances
+- **Azure Key Vault**:  stores secrets to be utilized by functions
+- **Azure Blob Storage**:  storage account used by Azure Functions and AML
+- **Azure App Insights**:  required by AML and helpful for troubleshooting functions
 
-For a more detailed walkthrough, please see the associated blog post on my website at [https://www.kcmunnings.com/azure-rmodel-devops-1/](https://www.kcmunnings.com/azure-rmodel-devops-1/).  The goal of this repo is to demonstrate some capabilities for operationalizing a R model on Azure (Source Control + Testing + CI + CD).
+# **Pre-reqs**
 
-# **Databricks Notebooks**
+- **Azure Powershell** - https://docs.microsoft.com/en-us/powershell/azure/install-az-ps?view=azps-2.8.0
+- **Azure Functions project using VS Code** - https://docs.microsoft.com/en-us/azure/azure-functions/functions-create-first-function-vs-code?pivots=programming-language-python
 
-There are separate training and inference notebooks.  The inference notebooks have associated test notebooks (not model testing such as calculating accuracy on a test data set, but unit and model evaluation tests).
+# **Steps**
 
-## Training
+## 1.  Create AAD Service Principal
 
-The training notebook is focused on interactive development.  It represents a notebook in which a data scientist is actively creating a model against a set of data.  Once a model with satisfactory is created, the output of this notebook is a serialized model (.rds) file which is stored in ADLS Gen2 and the git repo.
+The Azure functions will authenticate to the AML workspace using an AAD service principal.  The powershell commands will create a new service principal and print out the object ID, client ID, and secret.  Store these values as they will be needed in later steps.  Be sure to replace "ServicePrinicpalNameHere" with the name you want to use.  
 
-## Inference
+```powershell
+$sp = New-AzADServicePrincipal -DisplayName ServicePrincipalNameHere
+$BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($sp.Secret)
+$UnsecureSecret = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
 
-The inference notebook loads the serialized model and scores data from a file at a parameterized ADLS Gen2 location.  The notebook can be scheduled as a Databricks job or leveraged externally by another service such as Azure Data Factory.  In this repo, we use the parameterized inference notebook which loads a .csv file from storage, predicts a value stored in an additional column, and writes the results to a .csv file in ADLS Gen2.  This notebook, along with a trained model are the artifacts which are "deployed" to another environment.
-
-The inference notebook has associated testing notebooks.  These notebooks use the [testthat](https://testthat.r-lib.org/) library to perform unit testing (and any other testing the data scientist determines as criteria for pass/fail to higher environments).  In this case, we do some simple tests on the output of the scoring function and verify that the R-squared of the model is within an acceptable, arbitrary range
-
-## Git integration
-
-Databricks does have native integration with GitHub, BitBucket and Azure DevOps as of the time of this writing.  However, I have chosen to use the Databricks cli tool to import/export notebooks to my local machine and perform commits and pushes from there to have more control.  One area where this was more convenient was with including the serialized model.rds file in the repo, as I could manually import it into the repo locally and commit/push since arbitrary files cannot be managed in a Databricks workspace.  After the model.rds file was produced in Databricks by the training notebook, I copied it from ADLS Gen2 using the Azure Storage Explorer tool into the /models directory repo locally.  The same result could have been achieved via the Databricks CLI.
-
-# **Azure Data Factory**
-
-Azure Data Factory is used to operationalize the inference notebook in Azure Databricks as a batch job.  The goal is for an end user or application to simply upload a file into ADLS Gen2, and have the inference process (parameterized Databricks notebook) trigger automatically and output a file with predictions into another directory.  This functionality is achieved in ADF using a pipeline with a parameterized Databricks execute notebook step, which is triggered by a storage event.
-
-
-# **Web Service (Container)**
-
-- **/docker** - contains all files needed to build container image
-- **/docker/Dockerfile** - Container build instructions
-- **/docker/kubernetes-deployment.yaml** (contains service definition for Kubernetes deployments)
-- **/docker/app/** - contains all files that will be copied into the container image.  Scoring scripts using [plumber](https://www.rplumber.io/) were written to expose the model as a rest API.
-
-
-Containers are built and stored in Azure Container Registry, then they are deployed to Azure Kubernetes Service to run as a web service.
-
-## Unit Testing
-
-Unit tests for the containerized R model are located in **/docker/test/tests_1.r**.  Tests are performed with the [testthat](https://testthat.r-lib.org/) package.  Unit tests are ran inside the container environment and test results are written in the JUnit format (compatible with Azure DevOps reporting) to the **/app/test-result/junit_result.xml** path in the container.  The unit tests are simply check the model type and output format.
-
-## Post-Deployment Testing (Manual)
-
-Test Case for the container web service:
-
-Parameters are passed in the URL.  Below, height is the parameter and /weight is the endpoint.  Pass in a height value (x) to receive a weight value (Y).
-
-http://localhost:8000/weight?height=138
-
-The response object is a JSON array with the format:
+"secret: " + $UnsecureSecret
+"object ID: " + $sp.Id
+"client ID: " + $sp.ApplicationId
 ```
+
+## 2.  Modify the ARM Template Parameters
+
+Open and modify the Template/parameters.json file.
+
+- **resourceNamePrefix**:  prefix to be used in naming the Azure resources deployed in the template.  Make it all lowercase and don't include hyphens or underscores as storage account resource don't allow it.
+- **SP-objectID**:  object ID of the service principal created in the previous step
+- **SP-clientID**:  client ID of the service principal created in the previous step
+- **SP-secret**:  secret of the service principal created in the previous step
+
+
+```powershell
 {
-    "response": [
-        161.8533
-    ]
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "resourceNamePrefix": {
+            "value": ""
+        },
+        "SP-objectID": {
+            "value": ""
+        },        
+        "SP-clientID": {
+            "value": ""
+        },
+        "SP-secret": {
+            "value": ""
+        }
+    }
 }
 ```
 
-Please note that the model is created to demonstrate the deployment and CI/CD process, not to be a satisfactory or realistic weight prediction model.
+## 3.  Deploy the ARM Template
 
-# **CI/CD Process - Azure DevOps**
+Run the following powershell commands to connect authenticate to Azure, create a resource group for the deployment, and deploy the template.  Modify the resource group and region as needed.
 
-Build and release pipelines are created in Azure DevOps.  There are separate build and release pipelines for Databricks (which includes ADF components) and Container components.  These pipelines all have different triggers based on different pull requests which include changes in corresponding subdirectories (/docker, /databricks, /adf, etc).
+```powershell
+Connect-AzAccount
+New-AzResourceGroup -Name sqlmartini -Location "eastus2"
+New-AzResourceGroupDeployment -ResourceGroupName sqlmartini -TemplateFile template.json -TemplateParameterFile parameters.json
+```
 
-More detailed descriptions of the pipelines can be found in the blog posts.  They are included in the /devops directory of the repo and can be imported into Azure DevOps, but they will have to be heavily edited as they contain references to resources in my Azure subscription.
+## 4.  Deploy Azure Functions
 
-**Reference Links:**
+Publish the Azure Functions project to the Azure Function App created from the ARM template using VS Code.  
 
-Azure DevOps
-- https://docs.microsoft.com/en-us/azure/devops/user-guide/what-is-azure-devops?view=azure-devops
+**Reference:**  https://docs.microsoft.com/en-us/azure/azure-functions/functions-create-first-function-vs-code?pivots=programming-language-python#publish-the-project-to-azure
 
-Containers
-- https://www.rplumber.io/docs/hosting.html#docker
-- https://docs.microsoft.com/en-us/azure/container-registry/container-registry-intro
-- https://docs.microsoft.com/en-us/azure/aks/intro-kubernetes
+There are two Azure functions in the solution that execute the same code, but use different triggers.
+- **amlComputeShutdown-Timer**:  triggered by a timer.  Configured for 10pm UTC.
+- **amlComputeShutdown-HTTP**:  triggered by an HTTP request.
 
-Databricks
-- https://docs.azuredatabricks.net/
-- https://docs.azuredatabricks.net/api/latest/workspace.html#export
-- https://docs.azuredatabricks.net/user-guide/notebooks/github-version-control.html#github-version-control
+The functions use the AML Python SDK to authenticate to the AML workspace using the created service principal.  Azure Key Vault references are used in the Function App application settings to reference the secrets needed to authenticate with the service principal.  After authentication, the function loops through all Compute Instances in the AML workspace and shuts them down.
 
-ADF
-- https://docs.microsoft.com/en-us/azure/data-factory/
-- https://docs.microsoft.com/en-us/azure/data-factory/transform-data-using-databricks-notebook
+**Key Vault reference docs:**  https://docs.microsoft.com/en-us/azure/app-service/app-service-key-vault-references
+
+## 5.  Test amlComputeShutdown-HTTP Function using Postman
+
+From VS Code in the Azure: Functions area in the side bar, expand the new function app under your subscription. Expand Functions, right-click (Windows) or Ctrl + click (MacOS) on amlComputeShutdown-Timer, and then choose Copy function URL.  Paste this URL into a new Postman GET request and hit send.  Navigate to https://azureml.com and verify that the Compute Instance created in the ARM template is in a "Stopping" or "Stopped" state. 

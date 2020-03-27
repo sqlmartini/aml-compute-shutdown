@@ -5,14 +5,14 @@
         "resourceNamePrefix": {
             "value": ""
         },
+        "SP-objectID": {
+            "value": ""
+        },        
         "SP-clientID": {
             "value": ""
         },
         "SP-secret": {
             "value": ""
-        },    
-        "SP-objectID": {
-            "value": ""
-        }             
+        }
     }
 }
