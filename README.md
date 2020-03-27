@@ -1,6 +1,6 @@
 # **Intro**
 
-This is an example project to automate the shutting down of Azure ML Compute Instances using Azure Functions.  This is useful from a cost savings perspective to ensure that compute is shut down outside of normal working hours.  
+This is an example project to automate the shutting down of Azure ML Compute Instances using Azure Functions.  Useful from a cost savings perspective to ensure that compute is shut down outside of normal working hours.  
 
 As of 3/27/2020 the AML Python SDK is the only way to manage Compute Instances as the AML CLI is not currently supported.
 
