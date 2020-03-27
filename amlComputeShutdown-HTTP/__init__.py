@@ -15,6 +15,8 @@ def shutdownComputeInstances():
     tenantID = os.environ["tenantID"]
     clientID = os.environ["clientID"]
     spSecret = os.environ["secret"]
+    resourceGroupName = os.environ["resourceGroupName"]
+    amlWorkspaceName = os.environ["amlWorkspaceName"]
 
     #logging.info(subscriptionID, tenantID, clientID, spSecret)
 
@@ -25,8 +27,8 @@ def shutdownComputeInstances():
         service_principal_password = spSecret)
 
     ws = Workspace(subscription_id = subscriptionID,
-                resource_group = "sqlmartini",
-                workspace_name = "sqlmartini-aml",
+                resource_group = resourceGroupName,
+                workspace_name = amlWorkspaceName,
                 auth = auth)
 
     #Loop through workspace compute, stop all compute instances

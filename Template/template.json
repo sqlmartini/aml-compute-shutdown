@@ -147,7 +147,15 @@
                         {
                             "name": "subscriptionID",
                             "value": "[concat('@Microsoft.KeyVault(SecretUri=https://', variables('keyVaultName'), '.vault.azure.net/secrets/SP-subscriptionID/)')]"
-                        }                                                                                  
+                        },
+                        {
+                            "name": "resourceGroupName",
+                            "value": "[resourceGroup().name]"
+                        },
+                        {
+                            "name": "amlWorkspaceName",
+                            "value": "[variables('amlWorkspaceName')]"
+                        }                        
                     ]                
                 }
             }
